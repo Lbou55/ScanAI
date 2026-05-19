@@ -16,6 +16,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        val localProperties = com.android.build.gradle.internal.cxx.configure.gradleLocalProperties(rootDir, providers)
+        buildConfigField("String", "HF_API_KEY", "\"${localProperties.getProperty("HF_API_KEY", "")}\"")
     }
 
     buildTypes {
@@ -33,6 +35,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -59,4 +62,11 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+    //navigation
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.compose.material.icons.extended)
+    //AI
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.gson)
+    implementation(libs.okhttp.logging)
 }

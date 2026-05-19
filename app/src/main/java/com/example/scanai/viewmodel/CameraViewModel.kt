@@ -43,20 +43,25 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
             ContextCompat.getMainExecutor(context),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    val uri = Uri.fromFile(file).toString()
                     viewModelScope.launch {
-                        val scan = ScanEntity(
-                            imageUri = uri,
-                            label = "Pending",
-                            confidence = 0f
-                        )
-                        repository.insertScan(scan)
-                        _uiState.value = UiState.Success(scan)
+                        try {
+                            // 🤖 Appel IA
+                            val result = repository.classifyImage(file)
+                            val scan = ScanEntity(
+                                imageUri = Uri.fromFile(file).toString(),
+                                label = result.label,
+                                confidence = result.score
+                            )
+                            repository.insertScan(scan)
+                            _uiState.value = UiState.Success(scan)
+                        } catch (e: Exception) {
+                            _uiState.value = UiState.Error("Erreur IA : ${e.message}")
+                        }
                     }
                 }
 
                 override fun onError(exception: ImageCaptureException) {
-                    _uiState.value = UiState.Error(exception.message ?: "Erreur capture")
+                    _uiState.value = UiState.Error("Erreur capture : ${exception.message}")
                 }
             }
         )

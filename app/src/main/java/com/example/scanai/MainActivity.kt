@@ -1,190 +1,114 @@
 package com.example.scanai
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageCapture
-import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
-import com.example.scanai.data.model.UiState
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.example.scanai.ui.screens.CameraScreen
+import com.example.scanai.ui.screens.HistoryScreen
 import com.example.scanai.ui.theme.ScanAITheme
 import com.example.scanai.viewmodel.CameraViewModel
+import com.example.scanai.viewmodel.HistoryViewModel
 
 class MainActivity : ComponentActivity() {
     private lateinit var cameraViewModel: CameraViewModel
+    private lateinit var historyViewModel: HistoryViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         cameraViewModel = ViewModelProvider(this)[CameraViewModel::class.java]
+        historyViewModel = ViewModelProvider(this)[HistoryViewModel::class.java]
+
         setContent {
             ScanAITheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    CameraTestScreen(cameraViewModel)
+                Surface {
+                    MainScreen(cameraViewModel, historyViewModel)
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CameraTestScreen(viewModel: CameraViewModel) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val uiState by viewModel.uiState.collectAsState()
+fun MainScreen(
+    cameraViewModel: CameraViewModel,
+    historyViewModel: HistoryViewModel
+) {
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
-    var hasCameraPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
-                    == PackageManager.PERMISSION_GRANTED
-        )
-    }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasCameraPermission = granted
-    }
-
-    LaunchedEffect(Unit) {
-        if (!hasCameraPermission) {
-            permissionLauncher.launch(Manifest.permission.CAMERA)
-        }
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-
-        if (hasCameraPermission) {
-
-            AndroidView(
-                factory = { ctx ->
-                    val previewView = PreviewView(ctx)
-                    val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-
-                    cameraProviderFuture.addListener({
-                        val cameraProvider = cameraProviderFuture.get()
-
-                        val preview = Preview.Builder().build().also {
-                            it.setSurfaceProvider(previewView.surfaceProvider)
-                        }
-
-                        val imageCapture = ImageCapture.Builder().build()
-                        viewModel.setImageCapture(imageCapture)
-
-                        cameraProvider.unbindAll()
-                        cameraProvider.bindToLifecycle(
-                            lifecycleOwner,
-                            CameraSelector.DEFAULT_BACK_CAMERA,
-                            preview,
-                            imageCapture
-                        )
-                    }, ContextCompat.getMainExecutor(ctx))
-
-                    previewView
-                },
-                modifier = Modifier.fillMaxSize()
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("ScanAI") }
             )
-
-            Button(
-                onClick = { viewModel.capturePhoto(context) },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 48.dp)
-            ) {
-                Text("📷 Scanner")
-            }
-
-            when (val state = uiState) {
-                is UiState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-
-                is UiState.Success -> {
-                    Card(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(16.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                "✅ Photo sauvegardée !",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Label : ${state.data.label}")
-                            Text("Confiance : ${state.data.confidence}")
-                            Text("URI : ...${state.data.imageUri.takeLast(30)}")
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Button(onClick = { viewModel.resetState() }) {
-                                Text("Scanner à nouveau")
-                            }
+        },
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = currentRoute == "camera",
+                    onClick = {
+                        navController.navigate("camera") {
+                            launchSingleTop = true
                         }
-                    }
-                }
-
-                is UiState.Error -> {
-                    Card(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Filled.PhotoCamera,
+                            contentDescription = "Scanner"
                         )
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                "❌ Erreur : ${state.message}",
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Button(onClick = { viewModel.resetState() }) {
-                                Text("Réessayer")
-                            }
-                        }
-                    }
-                }
-
-                else -> {}
-            }
-
-        } else {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    "Permission caméra requise",
-                    style = MaterialTheme.typography.titleMedium
+                    },
+                    label = { Text("Scanner") }
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }
-                ) {
-                    Text("Autoriser")
-                }
+                NavigationBarItem(
+                    selected = currentRoute == "history",
+                    onClick = {
+                        navController.navigate("history") {
+                            launchSingleTop = true
+                        }
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Filled.History,
+                            contentDescription = "Historique"
+                        )
+                    },
+                    label = { Text("Historique") }
+                )
+            }
+        }
+    ) { paddingValues ->
+        NavHost(
+            navController = navController,
+            startDestination = "camera",
+            modifier = Modifier.padding(paddingValues)
+        ) {
+            composable("camera") {
+                CameraScreen(cameraViewModel)
+            }
+            composable("history") {
+                HistoryScreen(historyViewModel)
             }
         }
     }
