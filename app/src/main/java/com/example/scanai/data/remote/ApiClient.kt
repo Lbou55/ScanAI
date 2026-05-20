@@ -17,12 +17,12 @@ object ApiClient {
         .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
         .build()
 
-    val huggingFaceService: HuggingFaceService by lazy {
+    val geminiService: GeminiService by lazy {
         Retrofit.Builder()
-            .baseUrl("https://router.huggingface.co/hf-inference/")
+            .baseUrl("https://generativelanguage.googleapis.com/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-            .create(HuggingFaceService::class.java)
+            .create(GeminiService::class.java)
     }
 }

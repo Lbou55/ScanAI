@@ -45,12 +45,11 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     viewModelScope.launch {
                         try {
-                            // 🤖 Appel IA
-                            val result = repository.classifyImage(file)
+                            val (label, confidence) = repository.classifyImage(file)
                             val scan = ScanEntity(
                                 imageUri = Uri.fromFile(file).toString(),
-                                label = result.label,
-                                confidence = result.score
+                                label = label,
+                                confidence = confidence
                             )
                             repository.insertScan(scan)
                             _uiState.value = UiState.Success(scan)
