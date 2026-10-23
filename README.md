@@ -113,6 +113,5 @@ object ApiKeys {
 
 ## Important Notes
 
-- `ApiKeys.kt` is listed in `.gitignore` and will never be pushed to GitHub
 - The free tier of Gemini allows 15 requests per minute
 - If you get a 429 error, the app will automatically retry up to 3 times
